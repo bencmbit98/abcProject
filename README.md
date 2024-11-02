@@ -1,2 +1,2 @@
 # abcProject
-ABC Capstone Project
+Capstone Project for GovTech ABC course
