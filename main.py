@@ -1,7 +1,7 @@
 # Set up and run this Streamlit App
 import streamlit as st
 import pandas as pd
-
+import tiktoken
 import requests
 import chromadb
 import openai
@@ -65,8 +65,6 @@ def get_completion_by_messages(messages, model="gpt-4o-mini", temperature=0, top
     return response.choices[0].message.content
 
 # Functions for Counting Tokens
-import tiktoken
-
 def count_tokens(text):
     encoding = tiktoken.encoding_for_model("gpt-4o-mini")
     return len(encoding.encode(text))
@@ -170,7 +168,7 @@ if not check_password():
 
 final_text = RAG_Load()
 splitted_documents = RAG_SplittingChunking(final_text)
-RAG_Storage(Splitted_documents)
+RAG_Storage(splitted_documents)
 
 form = st.form(key="form")
 form.subheader("Prompt")
@@ -188,5 +186,4 @@ if form.form_submit_button("Submit"):
     
     response = qa_chain.invoke(user_prompt)
     st.write(response)
-
     st.divider()
