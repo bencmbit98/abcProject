@@ -94,9 +94,10 @@ def RAG_Load():
     
     final_text = ""
     for url in webpage_urls:
-    response = requests.get(url)
-    soup = bs4.BeautifulSoup(response.content, 'html.parser')
+        response = requests.get(url)
+        soup = bs4.BeautifulSoup(response.content, 'html.parser')
         final_text += soup.text.replace('\n', '')
+    
     return final_text
 
 # RAG Step 2: Splitting and Chunking
