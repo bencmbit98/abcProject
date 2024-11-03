@@ -13,6 +13,8 @@ from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
+from langchain.chains import RetrievalQA
+from langchain_openai import ChatOpenAI
 
 # from helper_functions import llm
 from logics.customer_query_handler import process_user_message
@@ -82,76 +84,74 @@ def get_embedding(input, model='text-embedding-3-small'):
     )
     return [x.embedding for x in response.data]
 
-# RAG Step 1: Document Loading
-webpage_urls = [
-    'https://www.tp.edu.sg/life-at-tp/special-educational-needs-sen-support.html',
-    'https://www.enablingguide.sg/im-looking-for-disability-support/transport',
-    'https://www.enablingguide.sg/im-looking-for-disability-support/child-adult-care',
-    'https://www.enablingguide.sg/im-looking-for-disability-support/training-employment',
-]
-final_text = ""
-for url in webpage_urls:
-  response = requests.get(url)
-  soup = bs4.BeautifulSoup(response.content, 'html.parser')
-  final_text += soup.text.replace('\n', '')
+# RAG Step 1: Document Loading ============================================================
+def RAG_Load():
+    webpage_urls = [
+        'https://www.tp.edu.sg/life-at-tp/special-educational-needs-sen-support.html',
+        'https://www.enablingguide.sg/im-looking-for-disability-support/transport',
+        'https://www.enablingguide.sg/im-looking-for-disability-support/child-adult-care',
+        'https://www.enablingguide.sg/im-looking-for-disability-support/training-employment']
+    
+    final_text = ""
+    for url in webpage_urls:
+    response = requests.get(url)
+    soup = bs4.BeautifulSoup(response.content, 'html.parser')
+        final_text += soup.text.replace('\n', '')
+    return final_text
 
 # RAG Step 2: Splitting and Chunking
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.docstore.document import Document # Import Document class
+def RAG_SplittingChunking(final_text):
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    from langchain.docstore.document import Document # Import Document class
 
-text_splitter = RecursiveCharacterTextSplitter(
-    separators=["\n\n", "\n", " ", ""],
-    chunk_size=500,
-    chunk_overlap=50,
-    length_function=count_tokens
-)
+    text_splitter = RecursiveCharacterTextSplitter(
+        separators=["\n\n", "\n", " ", ""],
+        chunk_size=500,
+        chunk_overlap=50,
+        length_function=count_tokens
+    )
 
-# Create a Document object with the text content
-document = Document(page_content=final_text)
+    # Create a Document object with the text content
+    document = Document(page_content=final_text)
 
-# Now pass the Document object to split_documents
-splitted_documents = text_splitter.split_documents([document]) # Pass a list containing the Document object
+    # Now pass the Document object to split_documents
+    splitted_documents = text_splitter.split_documents([document]) # Pass a list containing the Document object
+    # Show the number of tokens in each of the splitted documents
+    # for doc in splitted_documents:
+    #    print(count_tokens(doc.page_content))
 
-# Show the number of tokens in each of the splitted documents
-# for doc in splitted_documents:
-#    print(count_tokens(doc.page_content))
+    return splitted_documents
+
 
 # RAG Step 3: Storage
-# Embedding
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+def RAG_Storage(splitted_documents):
+    # Embedding
+    from langchain_chroma import Chroma
+    from langchain_openai import OpenAIEmbeddings
 
-# An embeddings model is initialized using the OpenAIEmbeddings class.
-# The specified model is 'text-embedding-3-small'.
-embeddings_model = OpenAIEmbeddings(model='text-embedding-3-small')
+    # An embeddings model is initialized using the OpenAIEmbeddings class.
+    # The specified model is 'text-embedding-3-small'.
+    embeddings_model = OpenAIEmbeddings(model='text-embedding-3-small')
 
-# using the Chroma class
-vector_store = Chroma.from_documents(
-    collection_name="about_SEN",
-    documents=splitted_documents,
-    embedding=embeddings_model,
-    persist_directory="./chroma_langchain_db",  # Where to save data locally, remove if not neccesary
-)
+    # using the Chroma class
+    vector_store = Chroma.from_documents(
+        collection_name="about_SEN",
+        documents=splitted_documents,
+        embedding=embeddings_model,
+        persist_directory="./chroma_langchain_db",  # Where to save data locally, remove if not neccesary
+        )
+    
+    # Show the number of documents in the vector store
+    # vector_store._collection.count()
 
-# Show the number of documents in the vector store
-# vector_store._collection.count()
-
-# Peek at one of the documents in the vector store
-# vector_store._collection.peek(limit=1)
+    # Peek at one of the documents in the vector store
+    # vector_store._collection.peek(limit=1)
 
 # RAG Step 4: Retrieval
 # vector_store.similarity_search('taxi', k=3)
 # vector_store.similarity_search_with_relevance_scores('taxi', k=3)
 
 # RAG Step 5: Output
-from langchain.chains import RetrievalQA
-from langchain_openai import ChatOpenAI
-
-qa_chain = RetrievalQA.from_chain_type(
-    ChatOpenAI(model='gpt-4o-mini'),
-    retriever=vector_store.as_retriever(k=20)
-)
-
 # result = qa_chain.invoke("How can get a taxi?")
 
 # region <--------- Streamlit App Configuration --------->
@@ -161,23 +161,31 @@ st.set_page_config(
 )
 # endregion <--------- Streamlit App Configuration --------->
 
-st.title("ABC Capstone Project App")
+st.title("Support SEN Student")
+st.write("in Temasek Polytechnic")
 # Check if the password is correct.  
 if not check_password():  
     st.stop()
 
+final_text = RAG_Load()
+splitted_documents = RAG_SplittingChunking(final_text)
+RAG_Storage(Splitted_documents)
+
 form = st.form(key="form")
 form.subheader("Prompt")
 
-user_prompt = form.text_area("Enter your prompt here", height=200)
+user_prompt = form.text_area("Ask me here", height=200)
 
 if form.form_submit_button("Submit"):
     
-    st.toast(f"User Input Submitted - {user_prompt}")
+    st.toast(f"You asked - {user_prompt}")
 
     st.divider()
-
-    response, course_details = process_user_message(user_prompt)
+    qa_chain = RetrievalQA.from_chain_type(
+        ChatOpenAI(model='gpt-4o-mini'),
+        retriever=vector_store.as_retriever(k=20))
+    
+    response = qa_chain.invoke(user_prompt)
     st.write(response)
 
     st.divider()
