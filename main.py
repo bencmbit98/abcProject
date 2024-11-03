@@ -140,6 +140,12 @@ def RAG_Storage(splitted_documents):
         persist_directory="./chroma_langchain_db",  # Where to save data locally, remove if not neccesary
         )
     
+    qa_chain = RetrievalQA.from_chain_type(
+        ChatOpenAI(model='gpt-4o-mini'),
+        retriever=vector_store.as_retriever(k=20))
+    
+    return qa_chain # Return the qa_chain object
+    
     # Show the number of documents in the vector store
     # vector_store._collection.count()
 
@@ -168,7 +174,7 @@ if not check_password():
 
 final_text = RAG_Load()
 splitted_documents = RAG_SplittingChunking(final_text)
-RAG_Storage(splitted_documents)
+qa_chain = RAG_Storage(splitted_documents)
 
 form = st.form(key="form")
 form.subheader("Prompt")
