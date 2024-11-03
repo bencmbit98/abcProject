@@ -17,7 +17,7 @@ from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
 
 # from helper_functions import llm
-from logics.customer_query_handler import process_user_message
+# from logics.customer_query_handler import process_user_message
 from helper_functions.utility import check_password
 
 # Helper Functions =============================================
