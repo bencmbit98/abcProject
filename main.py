@@ -3,18 +3,13 @@ import streamlit as st
 import pandas as pd
 import tiktoken
 import requests
-import chromadb
 import openai
 import bs4
 from bs4 import BeautifulSoup
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.embeddings import OpenAIEmbeddings
 from langchain.chains import RetrievalQA
-from langchain_openai import ChatOpenAI
-from langchain.chains import RetrievalQA
-from langchain_openai import ChatOpenAI
+from langchain.chat_models import ChatOpenAI
 
 # from helper_functions import llm
 # from logics.customer_query_handler import process_user_message
@@ -115,6 +110,7 @@ def RAG_SplittingChunking(final_text):
 
     # Now pass the Document object to split_documents
     splitted_documents = text_splitter.split_documents([document]) # Pass a list containing the Document object
+  
     # Show the number of tokens in each of the splitted documents
     # for doc in splitted_documents:
     #    print(count_tokens(doc.page_content))
@@ -124,25 +120,17 @@ def RAG_SplittingChunking(final_text):
 
 # RAG Step 3: Storage
 def RAG_Storage(splitted_documents):
-    # Embedding
-    from langchain_chroma import Chroma
-    from langchain_openai import OpenAIEmbeddings
-
     # An embeddings model is initialized using the OpenAIEmbeddings class.
-    # The specified model is 'text-embedding-3-small'.
-    embeddings_model = OpenAIEmbeddings(model='text-embedding-3-small')
+    embeddings_model = OpenAIEmbeddings(model='text-embedding-ada-002')
 
-    # using the Chroma class
-    vector_store = Chroma.from_documents(
-        collection_name="about_SEN",
-        documents=splitted_documents,
-        embedding=embeddings_model,
-        persist_directory="./chroma_langchain_db",  # Where to save data locally, remove if not neccesary
-        )
+    # Use FAISS for vector storage
+    vector_store = FAISS.from_documents(splitted_documents, embeddings_model)
     
+    # Initialize RetrievalQA with FAISS as retriever
     qa_chain = RetrievalQA.from_chain_type(
-        ChatOpenAI(model='gpt-4o-mini'),
-        retriever=vector_store.as_retriever(k=20))
+        llm=ChatOpenAI(model='gpt-4o-mini'),
+        retriever=vector_store.as_retriever(k=3)
+    )
     
     return qa_chain # Return the qa_chain object
     
@@ -179,17 +167,13 @@ qa_chain = RAG_Storage(splitted_documents)
 form = st.form(key="form")
 form.subheader("Prompt")
 
-user_prompt = form.text_area("Ask me here", height=200)
+user_prompt = form.text_area("Ask me anything: ", height=200)
 
 if form.form_submit_button("Submit"):
     
     st.toast(f"You asked - {user_prompt}")
 
-    st.divider()
-    qa_chain = RetrievalQA.from_chain_type(
-        ChatOpenAI(model='gpt-4o-mini'),
-        retriever=vector_store.as_retriever(k=20))
-    
+    st.divider()   
     response = qa_chain.invoke(user_prompt)
     st.write(response)
     st.divider()
